@@ -1,8 +1,10 @@
 {
   "dependencies": {
     "express": "^4.19.2",
+    "express-handlebars": "^8.0.1",
     "moment": "^2.30.1",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.7.5"
   },
   "name": "mathias-traicoff---comision-70115",
   "version": "1.0.0",
