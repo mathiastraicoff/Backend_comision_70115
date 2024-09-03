@@ -1,78 +1,86 @@
-import fs from 'fs/promises'
-import path from 'path'
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const productosFilePath = path.resolve('data', 'productos.json')
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-export default class ProductManager {
+class ProductManager {
     constructor() {
-        this.products = []
-        this.init()
+        this.filePath = path.join(__dirname, '../../data/productos.json');
+        this._initializeFile();
     }
 
-    async init() {
+    async _initializeFile() {
         try {
-            const data = await fs.readFile(productosFilePath, 'utf-8')
-            this.products = JSON.parse(data)
+            await fs.access(this.filePath);
         } catch (error) {
-            this.products = []
+            await fs.writeFile(this.filePath, JSON.stringify([]));
         }
     }
 
-    // Metodos
-    saveToFile() {
-        fs.writeFile(productosFilePath, JSON.stringify(this.products, null, 2));
-    }
-
-    getAllProducts(limit) {
+    async getAllProducts(limit) {
+        const products = await this._readFile();
         if (limit) {
-            return this.products.slice(0, limit)
+            return products.slice(0, limit);
         }
-        return this.products
+        return products;
     }
 
-    getProductById(id) {
-        const isNumber = !isNaN(id) && Number.isInteger(Number(id));
-    
-        if (!isNumber) {
-            throw new Error('El ID debe ser un número entero.');
-        }
-        return this.products.find(product => product.id === id);
+    async getProductById(id) {
+        const products = await this._readFile();
+        return products.find(product => product.id === id);
     }
 
-
-    
-    addProduct(product) {
-        const newProduct = {
-            id: this.products.length ? this.products[this.products.length - 1].id + 1 : 1,
-            ...product,
-            status: true
-        };
-        this.products.push(newProduct)
-        this.saveToFile()
+    async addProduct(productData) {
+        const products = await this._readFile();
+        const newId = products.length > 0 ? Math.max(products.map(p => p.id)) + 1 : 1;
+        const newProduct = { id: newId, ...productData };
+        products.push(newProduct);
+        await this._writeFile(products);
         return newProduct;
     }
 
-    updateProduct(id, updatedFields) {
-        const productIndex = this.products.findIndex(product => product.id === id)
-        if (productIndex === -1) return null;
-
-        const updateProduct = {
-            ...this.products[productIndex],
-            ...updatedFields,
-            id: this.products[productIndex].id 
+    async updateProduct(id, updateData) {
+        const products = await this._readFile();
+        const index = products.findIndex(p => p.id === id);
+        if (index === -1) {
+            return null;
         }
-        this.products[productIndex] = updateProduct;
-        this.saveToFile();
-        return updateProduct;
+        products[index] = { ...products[index], ...updateData };
+        await this._writeFile(products);
+        return products[index];
     }
 
-    deleteProduct(id) {
-        const productIndex = this.products.findIndex(product => product.id === id)
-        if (productIndex === -1) return null;
+    async deleteProduct(id) {
+        let products = await this._readFile();
+        const index = products.findIndex(p => p.id === id);
+        if (index === -1) {
+            return null;
+        }
+        const [deletedProduct] = products.splice(index, 1);
 
-        const deletedProduct = this.products.splice(productIndex, 1);
-        this.saveToFile()
-        return deletedProduct[0];
+        products = products.map((p, i) => ({ ...p, id: i + 1 }));
+        await this._writeFile(products);
+        return deletedProduct;
+    }
+
+    async _readFile() {
+        try {
+            const data = await fs.readFile(this.filePath, 'utf-8');
+            return JSON.parse(data);
+        } catch (error) {
+            return [];
+        }
+    }
+
+    async _writeFile(products) {
+        try {
+            await fs.writeFile(this.filePath, JSON.stringify(products, null, 2));
+        } catch (error) {
+            console.log('Error writing to file', error);
+        }
     }
 }
 
+export default ProductManager;

@@ -1,0 +1,61 @@
+{{!-- <html>
+<head>
+    <title>Home</title>
+</head>
+<body>
+    <h1>Lista de Productos</h1>
+    <ul>
+        {{#each products}}
+        <li>{{this.title}} - ${{this.price}} - {{this.description}} - {{this.image}}</li>
+        {{/each}}
+    </ul>
+</body>
+</html>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/index.js"></script> --}}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home</title>
+    <style>
+        /* Agrega tus estilos aquí */
+        #product-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #product-list li {
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .product-image {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lista de Productos</h1>
+    <ul id="product-list">
+        {{#each products}}
+        <li>
+            <img src="{{this.thumbnails}}" alt="{{this.title}}" class="product-image">
+            <h2>{{this.title}}</h2>
+            <p>{{this.description}}</p>
+            <p>Precio: ${{this.price}}</p>
+            <p>Stock: {{this.stock}}</p>
+            <p>Categoría: {{this.category}}</p>
+        </li>
+        {{/each}}
+    </ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/index.js"></script>
+</body>
+</html>
