@@ -1,79 +1,7 @@
-// document.addEventListener("DOMContentLoaded", () => {
-//     const socket = io();
 
-//     socket.on("updateProducts", (products) => {
-//         const productList = document.getElementById("product-list");
-//         productList.innerHTML = "";
-
-//         products.forEach((product) => {
-//             const li = document.createElement("li");
-//             li.innerHTML = `${product.title} - $${product.price}
-//                 <button class="delete-btn" data-id="${product.id}">Delete</button>`;
-//             productList.appendChild(li);
-//         });
-//     });
-
-//     document.getElementById("product-list").addEventListener("click", (event) => {
-//         if (event.target.classList.contains("delete-btn")) {
-//             const productId = event.target.getAttribute("data-id");
-//             fetch(`/api/products/${productId}`, {
-//                 method: "DELETE",
-//             })
-//             .then(response => response.json())
-//             .then(data => {
-//                 console.log("Producto eliminado:", data);
-//             })
-//             .catch(error => {
-//                 console.error("Error al eliminar el producto:", error);
-//             });
-//         }
-//     });
-// });
-
-
-// document.addEventListener("DOMContentLoaded", () => {
-//     const socket = io();
-
-//     // Actualizar la lista de productos en tiempo real
-//     socket.on("updateProducts", (products) => {
-//         const productList = document.getElementById("product-list");
-//         productList.innerHTML = "";
-
-//         products.forEach((product) => {
-//             const li = document.createElement("li");
-//             li.innerHTML = `${product.title} - $${product.price}
-//                 <button class="delete-btn" data-id="${product.id}">Delete</button>`;
-//             productList.appendChild(li);
-//         });
-//     });
-
-//     // Enviar evento para eliminar un producto
-//     document.getElementById("product-list").addEventListener("click", (event) => {
-//         if (event.target.classList.contains("delete-btn")) {
-//             const productId = parseInt(event.target.getAttribute("data-id"));
-//             socket.emit("deleteProduct", productId);
-//         }
-//     });
-
-//     // Enviar evento para agregar un nuevo producto
-//     document.getElementById("add-product-form").addEventListener("submit", (event) => {
-//         event.preventDefault();
-        
-//         const title = document.getElementById("title").value;
-//         const price = parseFloat(document.getElementById("price").value);
-
-//         if (title && !isNaN(price)) {
-//             socket.emit("addProduct", { title, price });
-//         }
-//     });
-
-//     // Solicitar productos cuando la página se carga
-//     socket.emit("requestProducts");
-// });
 document.addEventListener("DOMContentLoaded", () => {
     const socket = io();
 
-    // Actualizar la lista de productos en tiempo real
     socket.on("updateProducts", (products) => {
         const productList = document.getElementById("product-list");
         productList.innerHTML = "";
@@ -92,7 +20,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Enviar evento para eliminar un producto
     document.getElementById("product-list").addEventListener("click", (event) => {
         if (event.target.classList.contains("delete-btn")) {
             const productId = parseInt(event.target.getAttribute("data-id"));
@@ -100,7 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Enviar evento para agregar un nuevo producto
     document.getElementById("add-product-form").addEventListener("submit", (event) => {
         event.preventDefault();
         
@@ -123,6 +49,5 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Solicitar productos cuando la página se carga
     socket.emit("requestProducts");
 });
