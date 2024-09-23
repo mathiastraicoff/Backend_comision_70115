@@ -1,79 +1,58 @@
-import fs from 'fs/promises';
-import path from 'path';
+import Cart from '../models/Cart.js';
+import mongoose from 'mongoose';
 
-const cartsFilePath = path.resolve('data', 'carts.json');
-const productsFilePath = path.resolve('data', 'productos.json'); 
-export default class CartManager {
-    constructor() {
-        this.carts = [];
-        this.products = [];
-        this.init();
-    }
-
-    async init() {
-        try {
-            const cartsData = await fs.readFile(cartsFilePath, 'utf-8');
-            this.carts = JSON.parse(cartsData);
-        } catch (error) {
-            this.carts = [];
-        }
-
-        try {
-            const productsData = await fs.readFile(productsFilePath, 'utf-8');
-            this.products = JSON.parse(productsData);
-        } catch (error) {
-            console.error('Error al cargar los productos:', error);
-            this.products = [];
-        }
-    }
-
-    saveToFile() {
-        fs.writeFile(cartsFilePath, JSON.stringify(this.carts, null, 2));
-    }
-
-    createCart() {
-        const newCart = {
-            id: this.carts.length ? this.carts[this.carts.length - 1].id + 1 : 1,
-            products: []
-        };
-        this.carts.push(newCart);
-        this.saveToFile();
+class CartManager {
+    async add() {
+        const newCart = new Cart();
+        await newCart.save();
         return newCart;
     }
 
-    getCartById(id) {
-        return this.carts.find(cart => cart.id === id);
-    }
-
-    getProductById(productId) {
-        return this.products.find(product => product.id === productId);
-    }
-
-    addProductToCart(cartId, productId) {
-        const cart = this.getCartById(cartId);
-        const product = this.getProductById(productId);
-
-        if (cart && product) {
-            const productIndex = cart.products.findIndex(p => p.product === productId);
-            if (productIndex > -1) {
-                cart.products[productIndex].quantity += 1;
-            } else {
-                cart.products.push({ product: productId, quantity: 1 });
-            }
-            this.saveToFile();
-            return cart;
+    async addProduct(cartId, productId, quantity) {
+        if (!mongoose.Types.ObjectId.isValid(cartId)) {
+            throw new Error('ID de carrito inválido');
         }
 
-        return null;
+        const cart = await Cart.findById(cartId);
+        if (!cart) {
+            throw new Error('Carrito no encontrado');
+        }
+        if (!Array.isArray(cart.products)) {
+            cart.products = [];
+        }
+
+        const productIndex = cart.products.findIndex(item => {
+            return item.product && item.product.equals(productId); 
+        });
+
+        if (productIndex === -1) {
+            cart.products.push({ product: productId, quantity });
+        } else {
+            cart.products[productIndex].quantity += quantity;
+        }
+        try {
+            await cart.save();
+        } catch (error) {
+            console.error('Error al guardar el carrito:', error);
+            throw new Error('Error al guardar el carrito');
+        }
+
+        return cart;
     }
 
-    getCartProducts(cartId) {
-        const cart = this.getCartById(cartId);
-        if (!cart) return null;
+    async getCartById(cartId) {
+        if (!mongoose.Types.ObjectId.isValid(cartId)) {
+            throw new Error('ID de carrito inválido');
+        }
 
-        return cart.products.map(cartProduct => ({
-            product: cartProduct.product,
-            quantity: cartProduct.quantity
-        }));
+        const cart = await Cart.findById(cartId).populate('products.product');
+        if (!cart) {
+            throw new Error('Carrito no encontrado');
+        }
+        return cart;
     }
 }
+
+export default CartManager;
+
+

@@ -1,86 +1,74 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import Product from '../models/Product.js';
+import mongoose from 'mongoose';
 
 class ProductManager {
-    constructor() {
-        this.filePath = path.join(__dirname, '../../data/productos.json');
-        this._initializeFile();
-    }
-
-    async _initializeFile() {
+    async getAll({ limit = 10, page = 1, sort, category, availability }) {
+        const filter = {};
+    
+        if (category) {
+            filter.category = category; 
+        }
+        if (availability) {
+            filter.available = availability === 'true'; 
+        }
+    
+        const options = {
+            limit: parseInt(limit),
+            skip: (page - 1) * limit,
+            sort: sort ? { price: sort === 'asc' ? 1 : -1 } : {},
+        };
+    
         try {
-            await fs.access(this.filePath);
+            const products = await Product.find(filter, null, options).lean();
+            const totalProducts = await Product.countDocuments(filter);
+            return { products, totalProducts };
         } catch (error) {
-            await fs.writeFile(this.filePath, JSON.stringify([]));
+            console.error('Error en getAll:', error);
+            throw error;
         }
     }
+    
 
-    async getAllProducts(limit) {
-        const products = await this._readFile();
-        if (limit) {
-            return products.slice(0, limit);
+    async add(productData) {
+        const product = new Product(productData);
+        await product.save();
+        return product;
+    }
+
+    async update(productId, productData) {
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            throw new Error('ID de producto inválido');
         }
-        return products;
+        const updatedProduct = await Product.findByIdAndUpdate(productId, productData, { new: true });
+        return updatedProduct;
     }
 
-    async getProductById(id) {
-        const products = await this._readFile();
-        return products.find(product => product.id === id);
-    }
-
-    async addProduct(productData) {
-        const products = await this._readFile();
-        const newId = products.length > 0 ? Math.max(products.map(p => p.id)) + 1 : 1;
-        const newProduct = { id: newId, ...productData };
-        products.push(newProduct);
-        await this._writeFile(products);
-        return newProduct;
-    }
-
-    async updateProduct(id, updateData) {
-        const products = await this._readFile();
-        const index = products.findIndex(p => p.id === id);
-        if (index === -1) {
-            return null;
+    async delete(productId) {
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            throw new Error('ID de producto inválido');
         }
-        products[index] = { ...products[index], ...updateData };
-        await this._writeFile(products);
-        return products[index];
+        await Product.findByIdAndDelete(productId);
     }
 
-    async deleteProduct(id) {
-        let products = await this._readFile();
-        const index = products.findIndex(p => p.id === id);
-        if (index === -1) {
-            return null;
+    async getById(productId) {
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            throw new Error('ID de producto inválido');
         }
-        const [deletedProduct] = products.splice(index, 1);
-
-        products = products.map((p, i) => ({ ...p, id: i + 1 }));
-        await this._writeFile(products);
-        return deletedProduct;
+        const product = await Product.findById(productId).lean();
+        if (!product) {
+            throw new Error('Producto no encontrado');
+        }
+        return product;
     }
-
-    async _readFile() {
-        try {
-            const data = await fs.readFile(this.filePath, 'utf-8');
-            return JSON.parse(data);
-        } catch (error) {
-            return [];
-        }
-    }
-
-    async _writeFile(products) {
-        try {
-            await fs.writeFile(this.filePath, JSON.stringify(products, null, 2));
-        } catch (error) {
-            console.log('Error writing to file', error);
-        }
+    async getRandomProducts(limit = 10) {
+        const count = await Product.countDocuments();
+        const randomIndex = Math.floor(Math.random() * (count - limit));
+    
+        return Product.find().skip(randomIndex).limit(limit).lean();
     }
 }
 
 export default ProductManager;
+
+
+

@@ -1,53 +1,37 @@
+if (typeof socket === "undefined") {
+const socket = io();
 
-document.addEventListener("DOMContentLoaded", () => {
-    const socket = io();
+function addProductToCart(productId) {
+    
+    let cartId = localStorage.getItem('cartId');
+    if (!cartId) {
+        socket.emit('createCart');
+    } else {
+        socket.emit('addProductToCart', { productId });
+    }
+}
 
-    socket.on("updateProducts", (products) => {
-        const productList = document.getElementById("product-list");
-        productList.innerHTML = "";
-
-        products.forEach((product) => {
-            const li = document.createElement("li");
-            li.innerHTML = `
-                <img src="${product.thumbnails}" alt="${product.title}" class="product-image">
-                <h2>${product.title}</h2>
-                <p>${product.description}</p>
-                <p>Precio: $${product.price}</p>
-                <p>Stock: ${product.stock}</p>
-                <p>Categoría: ${product.category}</p>
-                <button class="delete-btn" data-id="${product.id}">Delete</button>`;
-            productList.appendChild(li);
-        });
-    });
-
-    document.getElementById("product-list").addEventListener("click", (event) => {
-        if (event.target.classList.contains("delete-btn")) {
-            const productId = parseInt(event.target.getAttribute("data-id"));
-            socket.emit("deleteProduct", productId);
-        }
-    });
-
-    document.getElementById("add-product-form").addEventListener("submit", (event) => {
-        event.preventDefault();
-        
-        const title = document.getElementById("title").value;
-        const description = document.getElementById("description").value;
-        const price = parseFloat(document.getElementById("price").value);
-        const stock = parseInt(document.getElementById("stock").value);
-        const category = document.getElementById("category").value;
-        const thumbnails = document.getElementById("thumbnails").value;
-
-        if (title && !isNaN(price) && !isNaN(stock)) {
-            socket.emit("addProduct", {
-                title,
-                description,
-                price,
-                stock,
-                category,
-                thumbnails
-            });
-        }
-    });
-
-    socket.emit("requestProducts");
+socket.on('cartCreated', ({ cartId }) => {
+    localStorage.setItem('cartId', cartId);
 });
+
+socket.on('addProductSuccess', (message) => {
+    updateCartCount();
+});
+
+socket.on('addProductError', (error) => {
+    console.error('Error al agregar al carrito:', error.message);
+});
+
+function updateCartCount() {
+    let cartId = localStorage.getItem('cartId');
+    if (cartId) {
+        socket.emit('getCart', { cartId });
+    }
+}
+
+socket.on('cartUpdated', (cart) => {
+    const cartCount = cart.products.reduce((sum, item) => sum + item.quantity, 0);
+    document.getElementById('cart-count').innerText = cartCount;
+});
+}

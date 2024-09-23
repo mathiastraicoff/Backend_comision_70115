@@ -1,125 +1,95 @@
 import express from 'express';
-import fs from 'fs/promises';
-import path from 'path';
-import handlebars from 'express-handlebars';
+import mongoose from 'mongoose';
+import session from 'express-session';
+import { engine } from 'express-handlebars';
+import http from 'http';
 import { Server } from 'socket.io';
-import productsRouter from './routes/products.router.js';
 import cartsRouter from './routes/carts.router.js';
-import __dirname from './utils.js';
+import productsRouter from './routes/products.router.js';
+import viewsRouter from './routes/views.router.js';
+import path from 'path';
+import { __dirname } from './utils.js'; 
+import CartManager from './service/CartManager.js';
+import Handlebars from 'handlebars';
 
 const app = express();
-const SERVER_PORT = 8080;
+const server = http.createServer(app);
+const io = new Server(server);
+const cartManager = new CartManager(); 
 
-// Configuración de Express
+
+// Conectar a MongoDB
+mongoose.connect('mongodb+srv://mathiastraicoff:NsFHr42zR78sN6LF@dbecomision70115.5q1nl.mongodb.net/e-commerce?retryWrites=true&w=majority&appName=DBEcomision70115')
+    .then(() => {
+        console.log('Conexión a MongoDB exitosa');
+    })
+    .catch((error) => {
+        console.error('Error al conectar a MongoDB:', error);
+    });
+
+// Configuración de Handlebars
+app.engine('handlebars', engine({
+    allowProtoPropertiesByDefault: true,
+    allowProtoMethodsByDefault: true,
+    runtimeOptions: {
+        allowProtoPropertiesByDefault: true,
+        allowProtoMethodsByDefault: true,
+    },
+    layoutsDir: path.join(__dirname, 'views/layouts'),
+    defaultLayout: 'main',
+}));
+
+Handlebars.registerHelper('json', function (context) {
+    return JSON.stringify(context);
+});
+
+
+app.set('view engine', 'handlebars');
+app.set('views', path.join(__dirname, 'views'));
+
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-app.engine('handlebars', handlebars.engine());
-app.set('views', path.join(__dirname, '/views'));
-app.set('view engine', 'handlebars');
-
-app.use(express.static(path.join(__dirname, '/public')));
-
-// Crear servidor HTTP y WebSocket
-const httpServer = app.listen(SERVER_PORT, () => {
-    console.log(`Servidor escuchando por el puerto: ${SERVER_PORT}`);
-});
-
-const socketServer = new Server(httpServer);
-
-app.use('/api/products', productsRouter(socketServer));
-app.use('/api/carts', cartsRouter);
-
-// Rutas para renderizar vistas
-app.get('/realtimeproducts', (req, res) => {
-    const filePath = path.join(__dirname, '../data/productos.json');
-
-    fs.readFile(filePath, 'utf8')
-        .then((data) => {
-            const products = JSON.parse(data);
-            res.render('realTimeProducts', { products });
-        })
-        .catch((err) => {
-            console.error('Error leyendo el archivo:', err);
-            res.status(500).send('Error al leer los productos');
-        });
-});
-
-app.get('/home', (req, res) => {
-    const filePath = path.join(__dirname, '../data/productos.json');
-
-    fs.readFile(filePath, 'utf8')
-        .then((data) => {
-            const products = JSON.parse(data);
-            res.render('home', { products });
-        })
-        .catch((err) => {
-            console.error('Error leyendo el archivo:', err);
-            res.status(500).send('Error al leer los productos');
-        });
-});
-
-app.get('/ping', (req, res) => {
-    res.render("index");
-});
-
-// Manejo de eventos WebSocket
-socketServer.on('connection', (socket) => {
-
-    // Enviar todos los productos al cliente conectado
-    socket.on('requestProducts', async () => {
-        const filePath = path.join(__dirname, '../data/productos.json');
+app.use(session({
+    secret: 'asd123', 
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false } 
+}));
+app.use(async (req, res, next) => {
+    const cartId = req.session.cartId; 
+    if (cartId) {
         try {
-            const data = await fs.readFile(filePath, 'utf8');
-            const products = JSON.parse(data);
-            socket.emit('updateProducts', products);
+            const cart = await cartManager.getCartById(cartId); 
+            req.cartCount = cart.products.length; 
         } catch (error) {
-            console.error('Error leyendo el archivo:', error);
+            console.error('Error al obtener el carrito:', error);
+            req.cartCount = 0; 
         }
-    });
-
-// Agregar un nuevo producto
-socket.on('addProduct', async (productData) => {
-    const filePath = path.join(__dirname, '../data/productos.json');
-    try {
-        const data = await fs.readFile(filePath, 'utf8');
-        const products = JSON.parse(data);
-        const newId = products.length > 0 ? Math.max(products.map(p => p.id)) + 1 : 1;
-        const newProduct = {
-            id: newId,
-            ...productData,
-            code: productData.code || `CODE${newId}`,  // Generar un código si no se proporciona
-            status: productData.status !== undefined ? productData.status : true // Definir estado por defecto
-        };
-        products.push(newProduct);
-        await fs.writeFile(filePath, JSON.stringify(products, null, 2));
-        socketServer.emit('updateProducts', products); // Emitir a todos los clientes
-    } catch (error) {
-        console.error('Error al agregar el producto:', error);
+    } else {
+        req.cartCount = 0; 
     }
+    next();
 });
 
-    // Eliminar un producto
-    socket.on('deleteProduct', async (productId) => {
-        const filePath = path.join(__dirname, '../data/productos.json');
-        try {
-            const data = await fs.readFile(filePath, 'utf8');
-            let products = JSON.parse(data);
-            const index = products.findIndex(p => p.id === productId);
-            if (index !== -1) {
-                products.splice(index, 1);
-                // Reindexar productos
-                products = products.map((p, i) => ({ ...p, id: i + 1 }));
-                await fs.writeFile(filePath, JSON.stringify(products, null, 2));
-                socketServer.emit('updateProducts', products); // Emitir a todos los clientes
-            }
-        } catch (error) {
-            console.error('Error al eliminar el producto:', error);
-        }
-    });
 
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
-    });
+
+// Rutas
+app.use('/api/carts', cartsRouter);
+app.use('/api/products', productsRouter);
+app.use('/', viewsRouter);
+
+// Configuración de sockets
+io.on('connection', (socket) => {
 });
+
+// Servir archivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
+
+const PORT = 8080;
+server.listen(PORT, () => {
+    console.log(`Servidor escuchando en el puerto ${PORT}`);
+});
+
+
 

@@ -1,44 +1,51 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Home</title>
-    <style>
-        
-        #product-list {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        #product-list li {
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 5px;
-        }
-
-        .product-image {
-            max-width: 100px;
-            max-height: 100px;
-            object-fit: cover;
-        }
-    </style>
-</head>
-<body>
-    <h1>Lista de Productos</h1>
-    <ul id="product-list">
+<h1>PSA Argentina</h1>
+    <div id="cart-container"></div>
+        <a href="/carts/{{cartId}}">Ir al carrito (<span id="cart-count">{{cartCount}}</span>)</a>
+    </div>
+<div class="slider">
+    <div class="gallery">
         {{#each products}}
-        <li>
-            <img src="{{this.thumbnails}}" alt="{{this.title}}" class="product-image">
+        <div class="card">
             <h2>{{this.title}}</h2>
-            <p>{{this.description}}</p>
+            <img src="{{this.image}}" alt="{{this.title}}" style="max-width: 100%; height: auto;">
             <p>Precio: ${{this.price}}</p>
-            <p>Stock: {{this.stock}}</p>
-            <p>Categoría: {{this.category}}</p>
-        </li>
+            <a href="/products/{{this._id}}" class="btn">Ver Detalle</a>
+        </div>
         {{/each}}
-    </ul>
+    </div>
+</div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="/js/index.js"></script>
-</body>
-</html>
+<a href="/products" class="btn ver-todo">Ver Todo</a>
+
+<style>
+    .slider {
+        display: flex;
+        overflow-x: auto;
+        padding: 20px;
+    }
+    .gallery {
+        display: flex;
+        flex-wrap: nowrap;
+    }
+    .card {
+        background-color: #f4f4f4;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin: 10px;
+        padding: 20px;
+        min-width: 200px;
+        text-align: center;
+    }
+    .btn {
+        background-color: navy;
+        color: white;
+        padding: 10px;
+        text-decoration: none;
+        border-radius: 5px;
+    }
+    .ver-todo {
+        display: block;
+        margin-top: 20px;
+        text-align: center;
+    }
+</style>
