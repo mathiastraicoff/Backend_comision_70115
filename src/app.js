@@ -175,7 +175,6 @@ app.use('/', viewsRouter);
 
 // Configuración de sockets
 io.on('connection', (socket) => {
-    console.log('Usuario conectado');
 });
 
 // Servir archivos estáticos
